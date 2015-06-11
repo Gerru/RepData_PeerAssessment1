@@ -22,20 +22,6 @@ head(data)
 ```
 
 ```r
-tail(data)
-```
-
-```
-##       steps       date interval
-## 17563    NA 2012-11-30     2330
-## 17564    NA 2012-11-30     2335
-## 17565    NA 2012-11-30     2340
-## 17566    NA 2012-11-30     2345
-## 17567    NA 2012-11-30     2350
-## 17568    NA 2012-11-30     2355
-```
-
-```r
 summary(data)
 ```
 
@@ -51,9 +37,8 @@ summary(data)
 ```
 
 ```r
-# Turn dates into Date and ad Weekday column
+# Turn dates into Date
 data$date <- as.Date(data$date)
-data$weekday <- format(data$date, format = "%A")
 ```
 
 ## What is mean total number of steps taken per day?
@@ -62,6 +47,25 @@ data$weekday <- format(data$date, format = "%A")
 # 1. Calculate the total number of steps taken per day
 daysteps <- aggregate(data$steps, by = list(data$date), FUN = sum)
 colnames(daysteps) <- c("Date", "Steps")
+head(daysteps, 14)
+```
+
+```
+##          Date Steps
+## 1  2012-10-01    NA
+## 2  2012-10-02   126
+## 3  2012-10-03 11352
+## 4  2012-10-04 12116
+## 5  2012-10-05 13294
+## 6  2012-10-06 15420
+## 7  2012-10-07 11015
+## 8  2012-10-08    NA
+## 9  2012-10-09 12811
+## 10 2012-10-10  9900
+## 11 2012-10-11 10304
+## 12 2012-10-12 17382
+## 13 2012-10-13 12426
+## 14 2012-10-14 15098
 ```
 
 
@@ -111,32 +115,106 @@ plot(intervalsteps, type = "l")
 ## Imputing missing values
 
 ```r
-head(data)
+# 1. Calculate and report the total number of missing values in the dataset 
+countna <- sum(is.na(data))
+print(paste0("There are ", countna, " missing values (NAs) in the dataset"))
 ```
 
 ```
-##   steps       date interval weekday
-## 1    NA 2012-10-01        0  Monday
-## 2    NA 2012-10-01        5  Monday
-## 3    NA 2012-10-01       10  Monday
-## 4    NA 2012-10-01       15  Monday
-## 5    NA 2012-10-01       20  Monday
-## 6    NA 2012-10-01       25  Monday
+## [1] "There are 2304 missing values (NAs) in the dataset"
 ```
-#natest1 <- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
-#natest1b <- aggregate(natest1$Steps, by = list(natest1$Weekday), FUN = sum)
-natest2 <- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
-colnames(natest1) <- c("Interval", "Weekday", "Steps")
-colnames(natest2) <- c("Interval", "Weekday", "Steps")
+
+
+```r
+# 2. Devise a strategy for filling in all of the missing values in the dataset
+data$weekday <- format(data$date, format = "%A")
+dayinterval <- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
+colnames(dayinterval) <- c("interval", "weekday", "meansteps")
+newdata <- merge(data, dayinterval, by = c("interval", "weekday"))
+newdata <- newdata[order(newdata$date, newdata$interval), ]
+
+# 3. Create a new dataset that is equal to the original dataset but with the missing data filled in
+newdata$steps[is.na(newdata$steps)] <- newdata$meansteps[is.na(newdata$steps)]
+newdata <- newdata[, c("steps", "date", "interval")]
+```
+
+
+```r
+# 4. Make a histogram of the total number of steps taken each day 
+newdaysteps <- aggregate(newdata$steps, by = list(newdata$date), FUN = sum)
+colnames(newdaysteps) <- c("Date", "Steps")
+
 library(ggplot2)
-m <- ggplot(natest1, aes(x = Weekday))
-m + geom_bar(fill = "red", col = "black") + 
+m <- ggplot(newdaysteps, aes(x = Steps))
+m + geom_histogram(fill = "red", col = "black") + 
     theme_bw() +
-    labs(title = "Mean total number of steps per Interval per Day of the Week") +
-    labs(x = "Steps per week day", y = "Count")
+    labs(title = "Histogram for mean total number of steps taken per day") +
+    labs(x = "Steps per day", y = "Count")
+```
 
-g <- ggplot(natest1, aes(Interval, Steps, color=factor(Weekday)))
-g + geom_line()
+![](PA1_files/figure-html/noNAplot-1.png) 
 
+```r
+# Calculate and report the mean and median total number of steps taken per day.
+newmeansteps <- mean(newdaysteps$Steps, na.rm = TRUE)
+newmeansteps
+```
+
+```
+## [1] 10821.21
+```
+
+```r
+newmediansteps <- median(newdaysteps$Steps, na.rm = TRUE)
+newmediansteps
+```
+
+```
+## [1] 11015
+```
+
+```r
+#Do these values differ from the estimates from the first part of the assignment?
+print(paste0("The mean of ", newmeansteps, " is ", newmeansteps - meansteps, " higher than the old dataset"))
+```
+
+```
+## [1] "The mean of 10821.2096018735 is 55.0209226282532 higher than the old dataset"
+```
+
+```r
+print(paste0("The median of ", newmediansteps, " is ", newmediansteps - mediansteps, " higher than the old dataset"))
+```
+
+```
+## [1] "The median of 11015 is 250 higher than the old dataset"
+```
+
+```r
+# It seems that inputting missing data results in higher frequencies on the histogram as well as higher values
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```r
+# 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+weekend <- function(day) {
+  if (day %in% c("Saturday", "Sunday")) {
+    "Weekend"
+  } else {
+    "Weekday"
+  }
+}
+
+newdata$weekday <- format(newdata$date, format = "%A")
+newdata$daytype <- as.factor(sapply(newdata$weekday, weekend))
+
+weekenddata <- aggregate(newdata$steps, by = list(newdata$daytype, newdata$interval), FUN = mean)
+colnames(weekenddata) <- c("daytype", "interval", "steps")
+
+m <- ggplot(weekenddata, aes(interval, steps))
+m + facet_grid(daytype ~ .) +
+    geom_line()
+```
+
+![](PA1_files/figure-html/weekendactivities-1.png) 

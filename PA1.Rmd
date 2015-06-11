@@ -13,12 +13,10 @@ data <- read.csv("activity.csv")
 
 # Take a look at the data
 head(data)
-tail(data)
 summary(data)
 
-# Turn dates into Date and ad Weekday column
+# Turn dates into Date
 data$date <- as.Date(data$date)
-data$weekday <- format(data$date, format = "%A")
 ```
 
 ## What is mean total number of steps taken per day?
@@ -26,6 +24,7 @@ data$weekday <- format(data$date, format = "%A")
 # 1. Calculate the total number of steps taken per day
 daysteps <- aggregate(data$steps, by = list(data$date), FUN = sum)
 colnames(daysteps) <- c("Date", "Steps")
+head(daysteps, 14)
 ```
 
 ```{r daystepsplot}
@@ -56,20 +55,68 @@ plot(intervalsteps, type = "l")
 
 ## Imputing missing values
 ```{r NAs}
-natest1 <- aggregate(data$steps, by = list(data$interval, data$Weekday), FUN = mean, na.rm=TRUE)
-natest1b <- aggregate(natest1$Steps, by = list(natest1$Weekday), FUN = sum)
-natest2 <- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
-colnames(natest1) <- c("Interval", "Weekday", "Steps")
-colnames(natest2) <- c("Interval", "Weekday", "Steps")
-library(ggplot2)
-m <- ggplot(natest1, aes(x = Weekday))
-m + geom_bar(fill = "red", col = "black") + 
-    theme_bw() +
-    labs(title = "Mean total number of steps per Interval per Day of the Week") +
-    labs(x = "Steps per week day", y = "Count")
+# 1. Calculate and report the total number of missing values in the dataset 
+countna <- sum(is.na(data))
+print(paste0("There are ", countna, " missing values (NAs) in the dataset"))
+```
 
-g <- ggplot(natest1, aes(Interval, Steps, color=factor(Weekday)))
-g + geom_line()
+```{r NAstrategy}
+# 2. Devise a strategy for filling in all of the missing values in the dataset
+data$weekday <- format(data$date, format = "%A")
+dayinterval <- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
+colnames(dayinterval) <- c("interval", "weekday", "meansteps")
+newdata <- merge(data, dayinterval, by = c("interval", "weekday"))
+newdata <- newdata[order(newdata$date, newdata$interval), ]
+
+# 3. Create a new dataset that is equal to the original dataset but with the missing data filled in
+newdata$steps[is.na(newdata$steps)] <- newdata$meansteps[is.na(newdata$steps)]
+newdata <- newdata[, c("steps", "date", "interval")]
+```
+
+```{r noNAplot}
+# 4. Make a histogram of the total number of steps taken each day 
+newdaysteps <- aggregate(newdata$steps, by = list(newdata$date), FUN = sum)
+colnames(newdaysteps) <- c("Date", "Steps")
+
+library(ggplot2)
+m <- ggplot(newdaysteps, aes(x = Steps))
+m + geom_histogram(fill = "red", col = "black") + 
+    theme_bw() +
+    labs(title = "Histogram for mean total number of steps taken per day") +
+    labs(x = "Steps per day", y = "Count")
+
+# Calculate and report the mean and median total number of steps taken per day.
+newmeansteps <- mean(newdaysteps$Steps, na.rm = TRUE)
+newmeansteps
+
+newmediansteps <- median(newdaysteps$Steps, na.rm = TRUE)
+newmediansteps
+
+#Do these values differ from the estimates from the first part of the assignment?
+print(paste0("The mean of ", newmeansteps, " is ", newmeansteps - meansteps, " higher than the old dataset"))
+print(paste0("The median of ", newmediansteps, " is ", newmediansteps - mediansteps, " higher than the old dataset"))
+
+# It seems that inputting missing data results in higher frequencies on the histogram as well as higher values
 ```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r weekendactivities}
+# 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+weekend <- function(day) {
+  if (day %in% c("Saturday", "Sunday")) {
+    "Weekend"
+  } else {
+    "Weekday"
+  }
+}
+
+newdata$weekday <- format(newdata$date, format = "%A")
+newdata$daytype <- as.factor(sapply(newdata$weekday, weekend))
+
+weekenddata <- aggregate(newdata$steps, by = list(newdata$daytype, newdata$interval), FUN = mean)
+colnames(weekenddata) <- c("daytype", "interval", "steps")
+
+m <- ggplot(weekenddata, aes(interval, steps))
+m + facet_grid(daytype ~ .) +
+    geom_line()
+```
