@@ -62,6 +62,7 @@ print(paste0("There are ", countna, " missing values (NAs) in the dataset"))
 
 ```{r NAstrategy}
 # 2. Devise a strategy for filling in all of the missing values in the dataset
+# I decided to use the mean value per 5min interval for each day to have higher accuracy.
 data$weekday <- format(data$date, format = "%A")
 dayinterval <- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
 colnames(dayinterval) <- c("interval", "weekday", "meansteps")
@@ -69,8 +70,8 @@ newdata <- merge(data, dayinterval, by = c("interval", "weekday"))
 newdata <- newdata[order(newdata$date, newdata$interval), ]
 
 # 3. Create a new dataset that is equal to the original dataset but with the missing data filled in
-newdata$steps[is.na(newdata$steps)] <- newdata$meansteps[is.na(newdata$steps)]
-newdata <- newdata[, c("steps", "date", "interval")]
+newdata$steps[is.na(newdata$steps)] <- newdata$meansteps[is.na(newdata$steps)] # Fill in missing values
+newdata <- newdata[, c("steps", "date", "interval")] # Subset newdata to match the columns of the original dataset
 ```
 
 ```{r noNAplot}

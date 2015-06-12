@@ -142,6 +142,7 @@ countna &lt;- sum(is.na(data))
 print(paste0(&quot;There are &quot;, countna, &quot; missing values (NAs) in the dataset&quot;))</code></pre>
 <pre><code>## [1] &quot;There are 2304 missing values (NAs) in the dataset&quot;</code></pre>
 <pre class="r"><code># 2. Devise a strategy for filling in all of the missing values in the dataset
+# I decided to use the mean value per 5min interval for each day to have higher accuracy.
 data$weekday &lt;- format(data$date, format = &quot;%A&quot;)
 dayinterval &lt;- aggregate(data$steps, by = list(data$interval, data$weekday), FUN = mean, na.rm=TRUE)
 colnames(dayinterval) &lt;- c(&quot;interval&quot;, &quot;weekday&quot;, &quot;meansteps&quot;)
@@ -149,8 +150,8 @@ newdata &lt;- merge(data, dayinterval, by = c(&quot;interval&quot;, &quot;weekda
 newdata &lt;- newdata[order(newdata$date, newdata$interval), ]
 
 # 3. Create a new dataset that is equal to the original dataset but with the missing data filled in
-newdata$steps[is.na(newdata$steps)] &lt;- newdata$meansteps[is.na(newdata$steps)]
-newdata &lt;- newdata[, c(&quot;steps&quot;, &quot;date&quot;, &quot;interval&quot;)]</code></pre>
+newdata$steps[is.na(newdata$steps)] &lt;- newdata$meansteps[is.na(newdata$steps)] # Fill in missing values
+newdata &lt;- newdata[, c(&quot;steps&quot;, &quot;date&quot;, &quot;interval&quot;)] # Subset newdata to match the columns of the original dataset</code></pre>
 <pre class="r"><code># 4. Make a histogram of the total number of steps taken each day 
 newdaysteps &lt;- aggregate(newdata$steps, by = list(newdata$date), FUN = sum)
 colnames(newdaysteps) &lt;- c(&quot;Date&quot;, &quot;Steps&quot;)
